@@ -1,0 +1,6 @@
+#!/bin/bash
+
+gnuplot --persist -e "\
+  set style line 1 lc rgb '#ff0000' pt 0;\
+  set style line 2 lc rgb '#00ff00' pt 0;\
+  plot '$1' with linespoint ls 1, '$2' with linespoint ls 2"

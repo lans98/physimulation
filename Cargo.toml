@@ -1,0 +1,7 @@
+[package]
+name = "physimulation"
+version = "0.1.0"
+authors = ["lans98 <lans9831@gmail.com>"]
+
+[dependencies]
+physics = { path = "/home/kevin/Projects/Rust/physics" }

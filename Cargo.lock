@@ -1,0 +1,11 @@
+[[package]]
+name = "physics"
+version = "0.1.0"
+
+[[package]]
+name = "physimulation"
+version = "0.1.0"
+dependencies = [
+ "physics 0.1.0",
+]
+
