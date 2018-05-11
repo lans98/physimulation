@@ -5,3 +5,5 @@ authors = ["lans98 <lans9831@gmail.com>"]
 
 [dependencies]
 physics = { path = "/home/kevin/Projects/Rust/physics" }
+text_io = "0.1.7"
+criterion-plot = "0.2.3"

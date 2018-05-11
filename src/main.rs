@@ -1,185 +1,311 @@
 extern crate physics;
+extern crate criterion_plot as plot;
 
-use physics::harmonic_movement;
-use std::io::{stdin, stdout, Write};
-use std::fs::File;
-use std::path::Path;
+#[macro_use]
+extern crate text_io;
 
-macro_rules! read {
-    () => (
-        {
-            let mut input = String::new();
-            stdout().flush().expect("Failed to flush stdout");
-            stdin().read_line(&mut input).expect("Failed to read line from stdin");
-            input
-        }
-    );
+use std::{
+  fs::File,
+  io::{Write, stdout},
+  path::Path
+};
+
+use physics::{
+  lotka_volterra,
+  harmonic_movement
+};
+
+use plot::prelude::*;
+
+macro_rules! scan {
+  () => ( { stdout().flush().expect("Failed to flush"); read!() } );
 }
 
 fn pendulum_ideal_simulation() {
-    eprint!("angle, speed, length, gravity: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 4 { panic!("Please input your fixed data"); }
+  eprint!("angle, speed, length, gravity: ");
+  let angle: f64 = read!();
+  let speed: f64 = read!();
+  let length: f64 = read!();
+  let gravity: f64 = read!();
 
-    let angle: f64 = data[0].parse().unwrap();
-    let speed: f64 = data[1].parse().unwrap();
-    let length: f64 = data[2].parse().unwrap();
-    let gravity: f64 = data[3].parse().unwrap();
+  eprint!("steps, delta: ");
+  let steps: usize = read!();
+  let delta: f64 = read!();
 
-    eprint!("steps, delta: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  eprint!("angle and speed output names: ");
+  let angle_file: String = read!();
+  let speed_file: String = read!();
 
-    let steps: usize = data[0].parse().unwrap();
-    let delta: f64 = data[1].parse().unwrap();
+  let path = Path::new(angle_file.as_str());
+  let mut angle_file = File::create(path).unwrap();
 
-    eprint!("angle and speed output names: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  let path = Path::new(speed_file.as_str());
+  let mut speed_file = File::create(path).unwrap();
 
-    let angle_file = data[0];
-    let speed_file = data[1];
+  let data = harmonic_movement::ideal::pendulum(speed, angle, length, gravity, steps, delta);
 
-    let path = Path::new(angle_file);
-    let mut angle_file = File::create(path).unwrap();
+  let mut angles = Vec::new();
+  let mut speeds = Vec::new();
+  let mut times  = Vec::new();
 
-    let path = Path::new(speed_file);
-    let mut speed_file = File::create(path).unwrap();
+  for d in &data {
+      angles.push(d.angle);
+      speeds.push(d.speed);
+      times.push(d.time);
+      angle_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.angle)).unwrap();
+      speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
+  }
 
-    let data = harmonic_movement::ideal::pendulum(speed, angle, length, gravity, steps, delta);
+  let mut figure = Figure::new();
+  figure.configure(Key, | k | {
+    k.set(Boxed::Yes);
+    k.set(Position::Inside(Vertical::Top, Horizontal::Left))
+  });
 
-    for d in &data {
-        angle_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.angle)).unwrap();
-        speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
-    }
+  figure.plot(Lines { x: times.clone(), y: angles.clone() }, | lp | {
+    lp.set(Color::Cyan);
+    lp.set(Label("angle"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.plot(Lines { x: times.clone(), y: speeds.clone() }, | lp | {
+    lp.set(Color::Gray);
+    lp.set(Label("speed"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.draw().expect("Failed to plot info");
 }
 
 fn pendulum_real_simulation() {
-    eprint!("angle, speed, length, gravity, air constant: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 5 { panic!("Please input your fixed data"); }
+  eprint!("angle, speed, length, gravity, air constant: ");
+  let angle: f64 = scan!();
+  let speed: f64 = scan!();
+  let length: f64 = scan!();
+  let gravity: f64 = scan!();
+  let air_const: f64 = scan!();
 
-    let angle: f64 = data[0].parse().unwrap();
-    let speed: f64 = data[1].parse().unwrap();
-    let length: f64 = data[2].parse().unwrap();
-    let gravity: f64 = data[3].parse().unwrap();
-    let air_const: f64 = data[4].parse().unwrap();
+  eprint!("steps, delta: ");
+  let steps: usize = scan!();
+  let delta: f64 = scan!();
 
-    eprint!("steps, delta: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  eprint!("angle and speed output names: ");
+  let angle_file: String = scan!();
+  let speed_file: String = scan!();
 
-    let steps: usize = data[0].parse().unwrap();
-    let delta: f64 = data[1].parse().unwrap();
+  let path = Path::new(angle_file.as_str());
+  let mut angle_file = File::create(path).unwrap();
 
-    eprint!("angle and speed output names: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  let path = Path::new(speed_file.as_str());
+  let mut speed_file = File::create(path).unwrap();
 
-    let angle_file = data[0];
-    let speed_file = data[1];
+  let data = harmonic_movement::real::pendulum(speed, angle, length, gravity, air_const, steps, delta);
 
-    let path = Path::new(angle_file);
-    let mut angle_file = File::create(path).unwrap();
+  let mut angles = Vec::new();
+  let mut speeds = Vec::new();
+  let mut times  = Vec::new();
 
-    let path = Path::new(speed_file);
-    let mut speed_file = File::create(path).unwrap();
+  for d in &data {
+      angles.push(d.angle);
+      speeds.push(d.speed);
+      times.push(d.time);
+      angle_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.angle)).unwrap();
+      speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
+  }
 
-    let data = harmonic_movement::real::pendulum(speed, angle, length, gravity, air_const, steps, delta);
+  let mut figure = Figure::new();
+  figure.configure(Key, | k | {
+    k.set(Boxed::Yes);
+    k.set(Position::Inside(Vertical::Top, Horizontal::Left))
+  });
 
-    for d in &data {
-        angle_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.angle)).unwrap();
-        speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
-    }
+  figure.plot(Lines { x: times.clone(), y: angles.clone() }, | lp | {
+    lp.set(Color::Cyan);
+    lp.set(Label("angle"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.plot(Lines { x: times.clone(), y: speeds.clone() }, | lp | {
+    lp.set(Color::Gray);
+    lp.set(Label("speed"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.draw().expect("Failed to plot info");
 }
 
 fn spring_ideal_simulation() {
-    eprint!("mass, k, position, speed: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 4 { panic!("Please input your fixed data"); }
+  eprint!("mass, k, position, speed: ");
+  let mass: f64 = scan!();
+  let spring_k: f64 = scan!();
+  let position: f64 = scan!();
+  let speed: f64 = scan!();
 
-    let mass: f64 = data[0].parse().unwrap();
-    let spring_k: f64 = data[1].parse().unwrap();
-    let position: f64 = data[2].parse().unwrap();
-    let speed: f64 = data[3].parse().unwrap();
+  eprint!("steps, delta: ");
+  let steps: usize = scan!();
+  let delta: f64 = scan!();
 
-    eprint!("steps, delta: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  eprint!("position and speed output names: ");
+  let position_file: String = scan!();
+  let speed_file: String = scan!();
 
-    let steps: usize = data[0].parse().unwrap();
-    let delta: f64 = data[1].parse().unwrap();
+  let path = Path::new(position_file.as_str());
+  let mut position_file = File::create(path).unwrap();
 
-    eprint!("position and speed output names: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  let path = Path::new(speed_file.as_str());
+  let mut speed_file = File::create(path).unwrap();
 
-    let position_file = data[0];
-    let speed_file    = data[1];
+  let data = harmonic_movement::ideal::spring(mass, spring_k, position, speed, steps, delta);
 
-    let path = Path::new(position_file);
-    let mut position_file = File::create(path).unwrap();
+  let mut positions = Vec::new();
+  let mut speeds    = Vec::new();
+  let mut times     = Vec::new();
 
-    let path = Path::new(speed_file);
-    let mut speed_file = File::create(path).unwrap();
+  for d in &data {
+    positions.push(d.position);
+    speeds.push(d.speed);
+    times.push(d.time);
+    position_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.position)).unwrap();
+    speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
+  }
 
-    let data = harmonic_movement::ideal::spring(mass, spring_k, position, speed, steps, delta);
+  let mut figure = Figure::new();
+  figure.configure(Key, | k | {
+    k.set(Boxed::Yes);
+    k.set(Position::Inside(Vertical::Top, Horizontal::Left))
+  });
 
-    for d in &data {
-        position_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.position)).unwrap();
-        speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
-    }
+  figure.plot(Lines { x: times.clone(), y: positions.clone() }, | lp | {
+    lp.set(Color::Cyan);
+    lp.set(Label("position"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.plot(Lines { x: times.clone(), y: speeds.clone() }, | lp | {
+    lp.set(Color::Gray);
+    lp.set(Label("speed"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.draw().expect("Failed to plot info");
 }
 
 fn spring_real_simulation() {
-    eprint!("mass, k, position, speed, b: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 5 { panic!("Please input your fixed data"); }
+  eprint!("mass, k, position, speed, b: ");
+  let mass: f64 = scan!();
+  let spring_k: f64 = scan!();
+  let position: f64 = scan!();
+  let speed: f64 = scan!();
+  let b_const: f64 = scan!();
 
-    let mass: f64 = data[0].parse().unwrap();
-    let spring_k: f64 = data[1].parse().unwrap();
-    let position: f64 = data[2].parse().unwrap();
-    let speed: f64 = data[3].parse().unwrap();
-    let b_const: f64 = data[4].parse().unwrap();
+  eprint!("steps, delta: ");
+  let steps: usize = scan!();
+  let delta: f64 = scan!();
 
-    eprint!("steps, delta: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  eprint!("position and speed output names: ");
+  let position_file: String = scan!();
+  let speed_file: String = scan!();
 
-    let steps: usize = data[0].parse().unwrap();
-    let delta: f64 = data[1].parse().unwrap();
+  let path = Path::new(position_file.as_str());
+  let mut position_file = File::create(path).unwrap();
 
-    eprint!("position and speed output names: ");
-    let data = read!();
-    let data: Vec<&str> = data.trim().split_whitespace().collect();
-    if data.len() != 2 { panic!("Please input your fixed data"); }
+  let path = Path::new(speed_file.as_str());
+  let mut speed_file = File::create(path).unwrap();
 
-    let position_file = data[0];
-    let speed_file    = data[1];
+  let data = harmonic_movement::real::spring(mass, spring_k, position, speed, b_const, steps, delta).unwrap();
 
-    let path = Path::new(position_file);
-    let mut position_file = File::create(path).unwrap();
+  let mut positions = Vec::new();
+  let mut speeds    = Vec::new();
+  let mut times     = Vec::new();
 
-    let path = Path::new(speed_file);
-    let mut speed_file = File::create(path).unwrap();
+  for d in &data {
+    positions.push(d.position);
+    speeds.push(d.speed);
+    times.push(d.time);
+    position_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.position)).unwrap();
+    speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
+  }
 
-    let data = harmonic_movement::real::spring(mass, spring_k, position, speed, b_const, steps, delta);
+  let mut figure = Figure::new();
+  figure.configure(Key, | k | {
+    k.set(Boxed::Yes);
+    k.set(Position::Inside(Vertical::Top, Horizontal::Left))
+  });
 
-    for d in &data {
-        position_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.position)).unwrap();
-        speed_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.speed)).unwrap();
-    }
+  figure.plot(Lines { x: times.clone(), y: positions.clone() }, | lp | {
+    lp.set(Color::Cyan);
+    lp.set(Label("position"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.plot(Lines { x: times.clone(), y: speeds.clone() }, | lp | {
+    lp.set(Color::Gray);
+    lp.set(Label("speed"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.draw().expect("Failed to plot info");
+}
+
+fn lotka_volterra_simulation() {
+  eprint!("initial poblation A, initial poblation B: ");
+  let pa: f64 = scan!();
+  let pb: f64 = scan!();
+
+  eprint!("a, b, c, d: ");
+  let a: f64 = scan!();
+  let b: f64 = scan!();
+  let c: f64 = scan!();
+  let d: f64 = scan!();
+
+  eprint!("initial time, final time, number of interactions: ");
+  let t0: f64 = scan!();
+  let tf: f64 = scan!();
+  let n: usize = scan!();
+
+  eprint!("poblation a file, poblation b file: ");
+  let poba_file: String = scan!();
+  let pobb_file: String = scan!();
+
+  let path = Path::new(&poba_file);
+  let mut poba_file = File::create(path).unwrap();
+
+  let path = Path::new(&pobb_file);
+  let mut pobb_file = File::create(path).unwrap();
+
+  let data = lotka_volterra::dam_predator(pa, pb, a, b, c, d, t0, tf, n);
+
+  let mut time = Vec::new();
+  let mut poba = Vec::new();
+  let mut pobb = Vec::new();
+
+  for d in &data {
+    time.push(d.time);
+    poba.push(d.pa);
+    pobb.push(d.pb);
+    poba_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.pa)).unwrap();
+    pobb_file.write_fmt(format_args!("{:.6} {:.6}\n", d.time, d.pb)).unwrap();
+  }
+
+  let mut figure = Figure::new();
+  figure.configure(Key, | k | {
+    k.set(Boxed::Yes);
+    k.set(Position::Inside(Vertical::Top, Horizontal::Left))
+  });
+
+  figure.plot(Lines { x: time.clone(), y: poba.clone() }, | lp | {
+    lp.set(Color::Cyan);
+    lp.set(Label("poblation a"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.plot(Lines { x: time.clone(), y: pobb.clone() }, | lp | {
+    lp.set(Color::Gray);
+    lp.set(Label("poblation b"));
+    lp.set(LineType::Dash)
+  });
+
+  figure.draw().expect("Failed to plot info");
 }
 
 fn main() {
@@ -188,13 +314,15 @@ fn main() {
     println!("2) Pendulum with air resistance");
     println!("3) Spring without cushion");
     println!("4) Spring with cushion");
+    println!("5) Lotka-Volterra predator dam");
     print!("Option: ");
-    let opt: i32 = read!().trim().parse().unwrap();
+    let opt: i32 = scan!();
     match opt {
         1 => pendulum_ideal_simulation(),
         2 => pendulum_real_simulation(),
         3 => spring_ideal_simulation(),
         4 => spring_real_simulation(),
+        5 => lotka_volterra_simulation(),
         _ => { panic!("Unknown option!!") }
     }
 }
